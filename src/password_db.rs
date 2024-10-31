@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 
 use crate::password_db_entry::PasswordDbEntry;
 
-struct PasswordDb {
+pub struct PasswordDb {
     db: HashMap<String, PasswordDbEntry>,
     hasher: Sha256
 }
@@ -18,7 +18,7 @@ impl PasswordDb {
             hasher: Sha256::new()
         }
     }
-    pub fn insert(&mut self, name: String, password: String, masterpass: &mut XChaCha20Poly1305) -> anyhow::Result<()>{
+    pub fn insert(&mut self, name: &str, password: &str, masterpass: &mut XChaCha20Poly1305) -> anyhow::Result<()>{
         let mut nonce = [0u8; 24];
         OsRng.fill_bytes(&mut nonce);
 
@@ -33,16 +33,16 @@ impl PasswordDb {
         };
         
         let db_entry = PasswordDbEntry::new(encrypted_password, nonce);
-        self.db.insert(name, db_entry);
+        self.db.insert(String::from(name), db_entry);
         
         Ok(())
     }
-    pub fn get(&self, name: String, masterpass: &mut XChaCha20Poly1305) -> anyhow::Result<String> {
-        let entry = match self.db.get(&name) {
+    pub fn get(&self, name: &str, masterpass: &mut XChaCha20Poly1305) -> anyhow::Result<String> {
+        let entry = match self.db.get(name) {
             Some(r) => r,
             None => return Err(anyhow!("This password entry does not exist"))
         };
-        let decrypted_password = entry.decrypt_password_using_mastercypher(masterpass)?;
+        let decrypted_password = entry.decrypt_password_using_mastercypher(masterpass).map_err(|_e| anyhow!("Invalid Password"))?;
         return Ok(decrypted_password);
     }
 }
